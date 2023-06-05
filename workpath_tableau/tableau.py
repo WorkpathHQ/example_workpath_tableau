@@ -14,7 +14,13 @@ class TableauKPI:
     view_id: str
     csv_row: int
     csv_col: int
-    # TODO Hande filters
+
+    @classmethod
+    def from_json(cls, json: dict) -> "TableauKPI":
+        return cls(**json)
+
+    def __str__(self) -> str:
+        return f"KPI in view {self.view_id} at row {self.csv_row}, column {self.csv_col}"
 
 
 class KPIError(Exception):

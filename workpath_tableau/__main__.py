@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 
 import yaml
 
-from .connect import ConnectAPI, NotFoundError
+from .connect import ConnectAPI, NotFoundError, WorkpathEntity
 from .tableau import get_kpi_data, sign_in, KPIError, TableauKPI
 
 
@@ -59,7 +59,7 @@ def load_connected_kpis(path: str) -> list[tuple[TableauKPI, str]]:
     """Load information on connected KPIs from YAML file."""
     with open(path) as f:
         kpis_yaml = yaml.safe_load(f)
-    return [(TableauKPI(**kpi["tableau"]), kpi["connect_id"]) for kpi in kpis_yaml]
+    return [(TableauKPI.from_json(kpi["tableau"]), WorkpathEntity.from_json(kpi["workpath"])) for kpi in kpis_yaml]
 
 
 def sync_kpis():
@@ -77,19 +77,18 @@ def sync_kpis():
     connected_kpis = load_connected_kpis(args.kpis_path)
 
     logger.info("Start update of %d KPIs", len(connected_kpis))
-    for tableau_kpi, connect_kpi_id in connected_kpis:
-        logger.info("Get KPI %s from Tableau", tableau_kpi)
-
+    for tableau_kpi, workpath_entity in connected_kpis:
+        logger.info("Get %s from Tableau", tableau_kpi)
         try:
             current_value = get_kpi_data(tableau_server, tableau_kpi)
         except KPIError as e:
-            logger.warning("Could not get KPI %s from Tableau: %s", tableau_kpi, e)
+            logger.warning("Could not get %s from Tableau: %s", tableau_kpi, e)
         else:
-            logger.info("Update KPI %s in Connect with its value", connect_kpi_id)
+            logger.info("Update %s in Connect API with its value", workpath_entity)
             try:
-                connect_client.update_kpi(connect_kpi_id, current_value)
+                connect_client.update_entity(workpath_entity, current_value)
             except NotFoundError:
-                logger.warning("KPI %s not found in Connect API", connect_kpi_id)
+                logger.warning("Entity %s not found in Connect API", workpath_entity)
 
     logger.info("Done, sign out of Tableau")
     tableau_server.auth.sign_out()

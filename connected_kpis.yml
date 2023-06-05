@@ -1,5 +1,17 @@
+# Link a KPI from a Tableau CSV export to a KPI in Workpath
 - tableau:
     view_id: 'REPLACE_WITH_TABLEAU_VIEW_ID'
     csv_row: 1
     csv_col: 0
-  connect_id: 'REPLACE_WITH_CONNECT_ID'
+  workpath:
+    type: kpi
+    id: 'REPLACE_WITH_CONNECT_ID'
+
+# ... or to a Key Result in Workpath
+- tableau:
+    view_id: 'REPLACE_WITH_TABLEAU_VIEW_ID'
+    csv_row: 2
+    csv_col: 3
+  workpath:
+    type: key_result
+    id: 'REPLACE_WITH_CONNECT_ID'

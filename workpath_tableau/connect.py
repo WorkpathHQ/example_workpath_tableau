@@ -1,8 +1,29 @@
+from dataclasses import dataclass
+from enum import Enum
+
 import requests
 
 
 class NotFoundError(Exception):
     """Raised when an entity is not found in the Workpath Connect API."""
+
+
+class WorkpathType(Enum):
+    KPI = "kpi"
+    KEY_RESULT = "key_result"
+
+
+@dataclass
+class WorkpathEntity:
+    type: WorkpathType
+    id: str
+
+    @classmethod
+    def from_json(cls, json: dict) -> "WorkpathEntity":
+        return cls(type=WorkpathType(json["type"]), id=json["id"])
+
+    def __str__(self) -> str:
+        return f"{self.type.value} {self.id}"
 
 
 class ConnectAPI:
@@ -22,6 +43,14 @@ class ConnectAPI:
         response.raise_for_status()
         return response.json()
 
+    def update_entity(self, entity: WorkpathEntity, value: float) -> dict:
+        if entity.type == WorkpathType.KPI:
+            return self.update_kpi(entity.id, value)
+        elif entity.type == WorkpathType.KEY_RESULT:
+            return self.update_key_result(entity.id, value)
+        else:
+            raise ValueError(f"Unknown entity type {entity.type}")
+
     def update_kpi(self, kpi_id: str, value: float) -> dict:
         url = f"{self.base_url}/kpis/{kpi_id}"
         headers = {
@@ -33,5 +62,20 @@ class ConnectAPI:
         response = requests.patch(url, headers=headers, json=data)
         if response.status_code == 404:
             raise NotFoundError(f"KPI {kpi_id} not found")
+        response.raise_for_status()
+        return response.json()
+
+    # TODO Make confidence optional, read current value if omitted
+    def update_key_result(self, key_result_id: str, value: float, confidence: int = 10) -> dict:
+        url = f"{self.base_url}/key_results/{key_result_id}"
+        headers = {
+            "Accept": "application/json",
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+        }
+        data = {"current_value": value, "confidence_level": confidence}
+        response = requests.patch(url, headers=headers, json=data)
+        if response.status_code == 404:
+            raise NotFoundError(f"Key result {key_result_id} not found")
         response.raise_for_status()
         return response.json()
