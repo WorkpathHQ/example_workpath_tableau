@@ -13,6 +13,9 @@ setuptools.setup(
     entry_points={
         "console_scripts": [
             "sync_kpis=workpath_tableau.__main__:sync_kpis",
+            "list_views=workpath_tableau.__main__:list_views",
+            "list_goals=workpath_tableau.__main__:list_goals",
+            "list_kpis=workpath_tableau.__main__:list_kpis",
         ]
     },
 )

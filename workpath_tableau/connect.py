@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Iterator
 
 import requests
 
@@ -33,17 +34,8 @@ class ConnectAPI:
         self.base_url = f"https://{domain}/api/v2"
         self.token = token
 
-    def list_kpis(self) -> list[dict]:
-        url = f"{self.base_url}/kpis"
-        headers = {
-            "Accept": "application/json",
-            "Authorization": f"Bearer {self.token}",
-        }
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        return response.json()
-
     def update_entity(self, entity: WorkpathEntity, value: float) -> dict:
+        """Update the current value of a KPI or key result."""
         if entity.type == WorkpathType.KPI:
             return self.update_kpi(entity.id, value)
         elif entity.type == WorkpathType.KEY_RESULT:
@@ -79,3 +71,29 @@ class ConnectAPI:
             raise NotFoundError(f"Key result {key_result_id} not found")
         response.raise_for_status()
         return response.json()
+
+    @classmethod
+    def paged_request(cls, url: str, headers: dict) -> Iterator[dict]:
+        """Yield all entities from a paged API endpoint."""
+        while url:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            json = response.json()
+            yield from json
+            url = response.headers.get("Pagination-Next-Page")
+
+    def list_kpis(self) -> list[dict]:
+        url = f"{self.base_url}/kpis"
+        headers = {
+            "Accept": "application/json",
+            "Authorization": f"Bearer {self.token}",
+        }
+        yield from self.paged_request(url, headers)
+
+    def list_goals(self) -> Iterator[dict]:
+        url = f"{self.base_url}/goals"
+        headers = {
+            "Accept": "application/json",
+            "Authorization": f"Bearer {self.token}",
+        }
+        yield from self.paged_request(url, headers)

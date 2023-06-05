@@ -1,11 +1,11 @@
 import logging
 import os
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 
 import yaml
 
 from .connect import ConnectAPI, NotFoundError, WorkpathEntity
-from .tableau import get_kpi_data, sign_in, KPIError, TableauKPI
+from .tableau import get_kpi_data, list_views as _list_views, sign_in, KPIError, TableauKPI, Server
 
 
 logger = logging.getLogger(__name__)
@@ -62,16 +62,23 @@ def load_connected_kpis(path: str) -> list[tuple[TableauKPI, str]]:
     return [(TableauKPI.from_json(kpi["tableau"]), WorkpathEntity.from_json(kpi["workpath"])) for kpi in kpis_yaml]
 
 
-def sync_kpis():
-    set_up_logging()
+def connect_to_tableau(args: Namespace) -> Server:
+    logger.info("Connect to Tableau at %s", args.tableau_domain)
+    return sign_in(args.tableau_domain, args.site_id, args.pat_name, args.pat)
 
+
+def connect_to_connect_api(args: Namespace) -> ConnectAPI:
+    logger.info("Connect to Workpath API at %s", args.connect_domain)
+    return ConnectAPI(args.connect_domain, args.connect_token)
+
+
+def sync_kpis():
+    """Sync KPIs from Tableau to Workpath KPIs or Key Results."""
+    set_up_logging()
     args = parse_args()
 
-    logger.info("Connect to Tableau at %s", args.tableau_domain)
-    tableau_server = sign_in(args.tableau_domain, args.site_id, args.pat_name, args.pat)
-
-    logger.info("Connect to Workpath API at %s", args.connect_domain)
-    connect_client = ConnectAPI(args.connect_domain, args.connect_token)
+    tableau_server = connect_to_tableau(args)
+    connect_client = connect_to_connect_api(args)
 
     logger.info("Load list of KPIs to sync from %s", args.kpis_path)
     connected_kpis = load_connected_kpis(args.kpis_path)
@@ -92,3 +99,39 @@ def sync_kpis():
 
     logger.info("Done, sign out of Tableau")
     tableau_server.auth.sign_out()
+
+
+def list_views():
+    """List all views available from Tableau Server."""
+    set_up_logging()
+    args = parse_args()
+
+    tableau_server = connect_to_tableau(args)
+
+    for view in _list_views(tableau_server):
+        print(f"View {view.id} {view.name}")
+
+
+def list_kpis():
+    """List all KPIs available from Workpath Connect API."""
+    set_up_logging()
+    args = parse_args()
+
+    connect_client = connect_to_connect_api(args)
+
+    for kpi in connect_client.list_kpis():
+        print(f"KPI {kpi['id']} {kpi['title']}")
+
+
+def list_goals():
+    """List all Goals and Key Results available from Connect API."""
+    set_up_logging()
+    args = parse_args()
+
+    connect_client = connect_to_connect_api(args)
+
+    for goal in connect_client.list_goals():
+        print(f"Goal {goal['id']} {goal['title']}")
+        for kr in goal["key_results"]:
+            print(f"- KR {kr['id']} {kr['title']}")
+        print()

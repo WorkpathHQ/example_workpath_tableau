@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Iterator
 
 
-from tableauserverclient import PersonalAccessTokenAuth
+from tableauserverclient import Pager, PersonalAccessTokenAuth, ViewItem
 from tableauserverclient.server.server import Server
 
 
@@ -32,6 +32,10 @@ def sign_in(tableau_domain: str, site_id: str, pat_name: str, pat: str) -> Serve
     server = Server(f"https://{tableau_domain}", use_server_version=True)
     server.auth.sign_in(auth)
     return server
+
+
+def list_views(server: Server) -> Iterator[ViewItem]:
+    yield from Pager(server.views)
 
 
 def get_view_data(server: Server, view_id: str) -> Iterator[list[str]]:
