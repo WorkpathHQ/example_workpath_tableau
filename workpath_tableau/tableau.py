@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Iterator
 
 
-from tableauserverclient import Pager, PersonalAccessTokenAuth, ViewItem
+from tableauserverclient import CSVRequestOptions, Pager, PersonalAccessTokenAuth, ViewItem
 from tableauserverclient.server.server import Server
 
 
@@ -14,13 +14,15 @@ class TableauKPI:
     view_id: str
     csv_row: int
     csv_col: int
+    filters: dict[str, str] = None
 
     @classmethod
     def from_json(cls, json: dict) -> "TableauKPI":
         return cls(**json)
 
     def __str__(self) -> str:
-        return f"KPI in view {self.view_id} at row {self.csv_row}, column {self.csv_col}"
+        filters = f" filtered by {self.filters}" if self.filters else ""
+        return f"KPI in view {self.view_id}{filters} at row {self.csv_row}, column {self.csv_col}"
 
 
 class KPIError(Exception):
@@ -38,16 +40,22 @@ def list_views(server: Server) -> Iterator[ViewItem]:
     yield from Pager(server.views)
 
 
-def get_view_data(server: Server, view_id: str) -> Iterator[list[str]]:
+def get_view_data(server: Server, view_id: str, filters: dict[str, str] | None = None) -> Iterator[list[str]]:
     view = server.views.get_by_id(view_id)
-    server.views.populate_csv(view)
+
+    csv_req_option = CSVRequestOptions()
+    if filters:
+        for name, value in filters.items():
+            csv_req_option.vf(name, value)
+    server.views.populate_csv(view, csv_req_option)
+
     csv_raw = b"".join(view.csv).decode("utf-8")
     csv_lines = csv_raw.splitlines()
     return csv.reader(csv_lines)
 
 
 def get_kpi_data(server: Server, kpi: TableauKPI) -> float:
-    data = get_view_data(server, kpi.view_id)
+    data = get_view_data(server, kpi.view_id, kpi.filters)
 
     try:
         for _ in range(kpi.csv_row):
