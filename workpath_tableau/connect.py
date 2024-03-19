@@ -57,15 +57,14 @@ class ConnectAPI:
         response.raise_for_status()
         return response.json()
 
-    # TODO Make confidence optional, read current value if omitted
-    def update_key_result(self, key_result_id: str, value: float, confidence: int = 10) -> dict:
+    def update_key_result(self, key_result_id: str, value: float) -> dict:
         url = f"{self.base_url}/key_results/{key_result_id}"
         headers = {
             "Accept": "application/json",
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
-        data = {"current_value": value, "confidence_level": confidence}
+        data = {"current_value": value}
         response = requests.patch(url, headers=headers, json=data)
         if response.status_code == 404:
             raise NotFoundError(f"Key result {key_result_id} not found")
